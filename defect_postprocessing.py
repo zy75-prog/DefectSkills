@@ -208,8 +208,8 @@ def read_dielectric(root, electronic=None, ionic=None, electronic_only=False):
                       "screening_convention": "electronic-only" if electronic_only else "electronic+ionic"}
 
 
-def orbit_multiplicity(structure, frac_coords, symprec=0.01):
-    """Crystallographic site multiplicity; no assumed spin degeneracy."""
+def site_multiplicity(structure, frac_coords, symprec=0.01):
+    """Number of symmetry-equivalent crystallographic sites."""
     ops = SpacegroupAnalyzer(structure, symprec=symprec).get_symmetry_operations()
     points = np.array([op.operate(frac_coords) % 1 for op in ops])
     # Cluster in Cartesian distance with periodic boundary conditions.
@@ -237,11 +237,11 @@ def configuration_multiplicity(root, relative_path, bulk, delta, center, symprec
         if len(removed) != 1:
             raise ValueError(f"Cannot identify one parent host site: {initial_path}")
         coords = ideal[next(iter(removed))].frac_coords
-        method = "crystallographic orbit of ideal parent host site"
+        method = "site multiplicity from the ideal parent host site"
     else:
         coords = comparison.defect_center_coord
-        method = "crystallographic orbit of initial interstitial configuration; review across charge states"
-    return orbit_multiplicity(ideal, coords, symprec), list(map(float, coords)), method
+        method = "site multiplicity from the initial interstitial configuration; review across charge states"
+    return site_multiplicity(ideal, coords, symprec), list(map(float, coords)), method
 
 
 def main(argv=None):
