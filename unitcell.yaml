@@ -1,0 +1,16 @@
+# Template: populate from the current calculations before using with pydefect.
+# vbm: defect-free supercell VBM, in eV.
+# cbm: this VBM plus the fundamental gap from dense-grid unit-cell eigenvalues.
+# Tensors: dimensionless relative permittivities in the supercell Cartesian frame.
+# Preserve all tensor components; null does not mean zero.
+system: null
+vbm: null
+cbm: null
+ele_dielectric_const:
+  - [null, null, null]
+  - [null, null, null]
+  - [null, null, null]
+ion_dielectric_const:
+  - [null, null, null]
+  - [null, null, null]
+  - [null, null, null]

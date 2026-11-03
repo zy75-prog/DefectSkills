@@ -1,0 +1,153 @@
+# INCAR reference settings accompanying defect_prompts.tex.
+# This file requires interpretation; do not pass the entire YAML to an INCAR writer.
+# The paper supplies workflow rules, validation, and stages not listed here.
+# Confirmed user choices override the corresponding suggested settings.
+#
+# To prepare one calculation:
+# 1. Select unit_cell or defect. Take ONLY its direct scalar INCAR entries.
+# 2. Overlay ONE stage's entries; stage values override shared values.
+#    For dielectric, overlay unit_cell.dielectric scalar entries, then ONE response branch.
+#    Never merge sibling stages (e.g., relax and static) or both calculation families.
+# 3. Remove the tags listed for that stage in stage_remove_tags below.
+# 4. Resolve every remaining null using resolve_before_generation; never write null to INCAR.
+# 5. Write only the resulting INCAR tags, converting YAML booleans to VASP logical values.
+#    Prepare KPOINTS separately using the guidance at the end of this file.
+#
+# Examples: defect.static = defect shared tags + defect.static overrides - static removal list.
+# unit_cell.dielectric.ionic_gga = unit_cell shared tags + dielectric shared tags
+#                               + ionic_gga overrides - dielectric_ionic_gga removal list.
+# Apply the same defect settings to the defect-free supercell reference, with q=0.
+unit_cell:
+  # Merge shared scalar tags with ONE stage below; do not write nested keys to INCAR.
+  ENCUT: null
+  ALGO: Normal
+  PREC: Accurate
+  EDIFF: 1.0E-6
+  ISMEAR: 0
+  SIGMA: 0.01
+  LHFCALC: True
+  HFSCREEN: 0.2
+  AEXX: null
+  LASPH: True
+  LMAXMIX: null
+  LCHARG: False
+  LWAVE: False
+  # Leave LREAL unset (default False) and ISPIN unset (default 1).
+
+  relax:
+    # Double relaxation: first converged CONTCAR becomes the second POSCAR.
+    ISIF: 3
+    IBRION: 2
+    NSW: 200  # Maximum ionic steps; reaching this limit does not establish convergence.
+    EDIFFG: -0.01
+
+  dos:
+    # Fixed relaxed unit cell; SIGMA may be overridden by the user.
+    SIGMA: 0.1
+    NEDOS: 10001
+
+  band:
+    # Use the DOS INCAR, retaining confirmed user settings except SIGMA=0.01 eV.
+    # KPOINTS combines the DOS mesh with zero-weight band-path points.
+    SIGMA: 0.01
+    NEDOS: 10001
+    # Retain nonzero-weight DOS mesh points and append zero-weight high-symmetry
+    # path points. Retain self-consistency; do not use ICHARG=11.
+    # Obtain the fundamental gap from the DOS calculation's eigenvalues.
+
+  dielectric:
+    # Merge shared unit-cell tags, these scalar tags, and ONE response branch.
+    EDIFF: 1.0E-8
+
+    electronic_gga:
+      LEPSILON: True
+
+    electronic_hybrid:
+      LOPTICS: True
+      NBANDS: null
+      NEDOS: null
+
+    ionic_gga:
+      LEPSILON: True
+      IBRION: 8
+      NSW: 1
+
+defect:
+  # Cost-saving defect-relaxation settings prescribed by the prompts.
+  ENCUT: null
+  ALGO: Normal
+  PREC: Accurate
+  ISTART: 0
+  ICHARG: 2
+  EDIFF: 1.0E-5
+  ISMEAR: 0
+  SIGMA: 0.05
+  LREAL: Auto
+  LHFCALC: True
+  HFSCREEN: 0.2
+  AEXX: null
+  PRECFOCK: Fast
+  LASPH: True
+  LMAXMIX: null
+  ISPIN: 2
+  ISYM: 0
+  MAGMOM: null
+  NELECT: null
+  LAECHG: False
+
+  relax:
+    ISIF: 2
+    NSW: 200  # Maximum ionic steps; reaching this limit does not establish convergence.
+    EDIFFG: -0.01
+    IBRION: 2
+    LCHARG: False
+    LWAVE: False
+    LVHAR: False
+    LVTOT: False
+
+  static:
+    EDIFF: 1.0E-6
+    LREAL: False
+    SIGMA: 0.01
+    LCHARG: True
+    LORBIT: 11
+    LVHAR: True
+    LWAVE: False
+
+# Metadata below must not be written as INCAR tags.
+resolve_before_generation:
+  ENCUT: "Use the user-specified cutoff. If unspecified, ask whether to use 400 eV and wait for confirmation. Use the confirmed cutoff consistently across all calculation stages, including dopants and competing phases."
+  AEXX: "Use the mixing parameter selected for the target material; use 0.25 if no calibration is performed."
+  LMAXMIX: "Select for the XC functional and chemical system, including d or f electrons; retain the unit-cell choice."
+  NBANDS: "For hybrid electronic dielectric calculations, choose sufficient unoccupied bands and verify the response is adequately represented."
+  NEDOS: "For DOS, use 10001 grid points. For hybrid electronic dielectric calculations, select an adequately resolved frequency grid; do not use a tiny grid as a speed shortcut."
+  MAGMOM: "Use N_at*0.6, with N_at equal to the actual atom count of each calculation, including the defect-free reference."
+  NELECT: "Sum the selected POTCAR valence counts for the actual atomic composition, then subtract q. Use q=0 for the defect-free reference."
+
+stage_remove_tags:
+  # These are deletion lists, not INCAR values. Apply AFTER merging the selected stage.
+  # For fixed-structure electronic stages, actually remove NSW and IBRION from INCAR.
+  # Stage paths corresponding to the keys below:
+  # static -> defect.static; dos -> unit_cell.dos; band -> unit_cell.band.
+  # dielectric_<branch> -> unit_cell.dielectric.<branch>.
+  static: [NSW, IBRION, EDIFFG]
+  dos: [NSW, IBRION, EDIFFG, ISIF]
+  band: [NSW, IBRION, EDIFFG, ISIF]
+  dielectric_electronic_gga: [LHFCALC, LOPTICS, NSW, IBRION, EDIFFG, ISIF]
+  dielectric_electronic_hybrid: [LEPSILON, NSW, IBRION, EDIFFG, ISIF]
+  dielectric_ionic_gga: [LHFCALC, LOPTICS, EDIFFG, ISIF]
+
+KPOINTS:
+  # Guidance for constructing KPOINTS, not a ready-to-write KPOINTS file or INCAR tags.
+  # All doubled meshes refer to the final unit-cell RELAXATION mesh, not the DOS mesh.
+  unit_cell:
+    relax: "Choose (N1,N2,N3) so N_i * a_i > 30 Angstrom in each direction."
+    dos: "Double each relaxation mesh dimension: (2*N1,2*N2,2*N3)."
+    band: "Use the converged DOS IBZKPT mesh with its nonzero weights, plus zero-weight SeeK-path points in the same reciprocal basis as POSCAR."
+    dielectric_gga: "Double each relaxation mesh dimension for both electronic and ionic contributions."
+    dielectric_hybrid: "Retain the unit-cell relaxation mesh unless the user specifies otherwise."
+  defect:
+    # Applies to defects and the defect-free supercell reference.
+    centering: Gamma
+    mesh: [1, 1, 1]
+    shift: [0, 0, 0]

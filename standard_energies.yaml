@@ -1,0 +1,4 @@
+# Template: replace the placeholder with one entry per host or dopant element.
+# Set every entry to 0.0 for the zero-chemical-potential formation-energy baseline.
+# Apply absolute chemical potentials separately in the subsequent analysis.
+"<element>": 0.0
