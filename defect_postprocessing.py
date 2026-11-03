@@ -2,7 +2,7 @@
 """Read VASP static results and export pydefect-corrected formation energies.
 
 No material-specific energies or chemical potentials are embedded. Source files
-are read-only; generated results go to defect/postprocessing unless --output is set.
+are read-only; generated results go to analysis unless --output is set.
 """
 from __future__ import annotations
 import argparse
@@ -260,7 +260,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     root = args.root.expanduser().resolve()
     static = (args.static or root / "defect/static").resolve()
-    output = (args.output or root / "defect/postprocessing").resolve()
+    output = (args.output or root / "analysis").resolve()
     bulk = load_run(resolve_one(static / "bulk", supplied=args.bulk))
     if read_charge(bulk) != 0:
         raise ValueError("Pristine bulk reference must be neutral")

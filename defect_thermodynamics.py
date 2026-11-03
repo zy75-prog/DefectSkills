@@ -252,7 +252,7 @@ def main(argv=None):
     if int(importlib_version().split(".")[0]) != 2:
         raise ValueError("This script targets py-sc-fermi 2.x; use a compatible environment")
     root = args.root.expanduser().resolve()
-    result_path = args.results or root / "defect/postprocessing/formation_energies.json"
+    result_path = args.results or root / "analysis/formation_energies.json"
     data = json.loads(result_path.read_text())
     if data.get("schema") != SCHEMA:
         raise ValueError("Unrecognized formation-energy JSON schema")
@@ -297,7 +297,7 @@ def main(argv=None):
                           "dos": dos_info, "sites_per_DOS_cell": sites, "writes": 0}, indent=2))
         return 0
     reports = [snapshots(system, t, args.quench_temperature) for t in args.synthesis_temperature]
-    out = args.output or root / "defect/postprocessing/concentrations"
+    out = args.output or root / "analysis/concentrations"
     out.mkdir(parents=True, exist_ok=True)
     result = {"schema": "agent-concentrations/1", "condition": args.condition,
               "absolute_chemical_potentials_eV_per_atom": mus, "formation_energy_source": str(result_path),
