@@ -1,0 +1,369 @@
+% Sections II and III extracted from the archived DefectSkills manuscript source.
+% The scientific prompt text is reproduced verbatim; only this standalone wrapper was added.
+\documentclass[aip,jap,reprint,amsmath,amssymb]{revtex4-2}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{bm}
+\usepackage{url}
+\usepackage{xcolor}
+\begin{document}
+\setcounter{section}{1}
+
+Sections II and III present the structured prompts that constitute DefectSkills and are intended for direct use as agent instructions. Figure~\ref{fig:workflow} summarizes the roles of researchers and AI agents and the workflow steps defined by the prompts. Figure~\ref{fig:user-decisions} summarizes the user inputs and decisions requested throughout the workflow.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/defect_workflow.pdf}
+\caption{Human-guided agentic AI workflow for first-principles defect calculations. (a) The researcher provides scientific guidance and makes decisions regarding the research scope, computational settings, and computing environment. The agent implements and executes the workflow by preparing inputs, running calculations, validating outputs, and analyzing results using the indicated toolkits and computing resources, while requesting researcher input at decision points. (b) The workflow is organized into host references, defect preparation, defect calculations, and results and backup. Blue circles indicate user decisions or confirmations, and red diamonds indicate validation or recovery checkpoints. Input validation, convergence checks, and continuation of unfinished relaxations apply throughout.}
+\label{fig:workflow}
+\end{figure*}
+
+\section{General setup prompts}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/user_decisions.pdf}
+\caption{User inputs and decision points for the defect-calculation protocol, grouped into computing environment, research scope, computational details, and thermodynamic analysis. Users may accept suggested defaults or specify alternatives. Dopant-related questions are asked only when applicable. The \texttt{doped} charge-state recommendations may be accepted collectively, whereas custom charge states are specified one defect species at a time.}
+\label{fig:user-decisions}
+\end{figure*}
+
+\textbf{User interaction.} Present questions one at a time using an interactive question window when available, with suggested choices and an option for a custom response.
+
+\textbf{Environment and prerequisites.} Ask the user for the computing cluster, Python virtual environment, VASP executable, scheduler submission script, and absolute calculation root directory.
+
+Verify environment activation and the availability of \texttt{pydefect},\cite{Kumagai2021} \texttt{doped},\cite{Kavanagh2024} \texttt{pymatgen},\cite{Ong2013} \texttt{pymatgen-analysis-defects},\cite{Shen2024} \texttt{py-sc-fermi},\cite{Squires2023} \texttt{sumo},\cite{Ganose2018} and \texttt{mp-api}.\cite{Jain2013} Modifying any existing Python environment, including installing, upgrading, downgrading, or removing packages, is strictly forbidden without explicit user approval. If no suitable environment exists, ask whether to create one and install these packages in a user-specified directory.
+
+Confirm that VASP is accessible. Check that the submission script specifies the allocation account, queue or partition, CPU or GPU resources, nodes, tasks, and wall-time limit, and complies with cluster resource policies.
+
+Confirm that the required pseudopotential datasets are available. When using \texttt{pymatgen}, configure their path through \texttt{PMG\_VASP\_PSP\_DIR} if it is not already configured. Construct the POTCAR file by direct concatenation of the original library datasets in POSCAR species order, preserving their bytes exactly. Do not parse and rewrite datasets, trim whitespace, or insert separators or extra newlines. Verify byte-for-byte agreement with the direct library concatenation before submission. Altering pseudopotential dataset contents is strictly forbidden throughout the workflow. Any access by LLMs to VASP source code or pseudopotential datasets must comply with VASP licensing and AI-use guidelines.\cite{VASPAIUseGuidelines}
+
+\textbf{Target material and research scope.} Ask the user to specify the material's chemical formula and an available identifier (e.g., Materials Project ID). Obtain its unit-cell structure from a supplied CIF or POSCAR file or a materials database, and confirm the crystal phase with the user. Ask whether to study intrinsic defects, dopants, or both. Generate vacancies, antisites, and interstitials when requested, and ask for dopant species when applicable. For each dopant, ask whether to consider substitutional sites, interstitial sites, or both. For simplicity, this computational protocol focuses on semiconductors and insulators without magnetic elements and neglects spin--orbit coupling (SOC). Users may extend it to magnetic materials or include SOC by specifying the corresponding settings and workflow modifications.
+
+\textbf{Folder hierarchy.} Within the user-specified absolute calculation root directory, create the following sibling folders as needed:
+\begin{itemize}
+    \item \texttt{unitcell}: Unit-cell structural relaxations in \texttt{relax\_1} and \texttt{relax\_2} subfolders.
+    \item \texttt{dielectric}: Electronic and ionic dielectric contributions in separate \texttt{electronic} and \texttt{ionic} subfolders for use in charged-defect corrections.
+    \item \texttt{dos}: Unit-cell electronic density of states (DOS) for defect thermodynamics.
+    \item \texttt{band}: Unit-cell band structure along high-symmetry paths.
+    \item \texttt{phase\_diagram}: Competing-phase calculations and chemical-potential stability analysis.
+    \item \texttt{defect}: Matching \texttt{relaxation} and \texttt{static} hierarchies for defect-free supercell and defect calculations.
+    \item \texttt{analysis}: Derived defect-analysis files from postprocessing and thermodynamic analysis.
+    \item \texttt{scripts}: Store all agent-created or adapted scripts and all operational files here, including logs, lock files, and status files. Keep these files out of calculation folders; scientific result JSON files may be stored in the \texttt{analysis} folder.
+    \item \texttt{backup}: Back up the VASP inputs and outputs, \texttt{defect\_metadata.json}, and \texttt{POTCAR.specs} specified in the data-backup step, excluding POTCAR files and preserving the calculation folder hierarchy.
+\end{itemize}
+All generated files and folders must be within the specified absolute calculation root directory.
+Keep working directories clean: place each file in its designated folder and keep the calculation root free of loose agent-generated files. Preserve this hierarchy and avoid duplicate versions and unnecessary files.
+
+\textbf{Execution settings.} Before each workflow stage, reread the corresponding subsection and the confirmed user choices, and verify the planned actions against them. Maintain consistent INCAR settings across calculation stages, changing only the settings explicitly specified for each stage. Using custom replacements for required packages is strictly forbidden without explicit user approval. Never duplicate active calculations, overwrite active files, or bypass worker locks.
+
+\textbf{Completion criteria.} Declare a relaxation complete only after verifying electronic and ionic convergence, a maximum force of $\leq 0.01$~eV/\AA, and normal termination. Declare a static calculation complete only after verifying electronic convergence and normal termination.
+
+\textbf{Continuation of relaxations.}
+Diagnose the stopping reason before restarting.
+Wall-time expiry, recoverable interruptions, and explicit VASP instructions to copy CONTCAR to POSCAR are treated as normal continuations. Validate the saved structure's composition, atom count, volume, and geometry, preserve existing outputs, and continue in a fresh \texttt{continue\_n} directory. Create \texttt{continue\_1}, \texttt{continue\_2}, etc., directly within the original relaxation directory as sibling folders; do not nest continuation folders. Copy the calculation inputs unchanged, replacing only POSCAR with the latest valid CONTCAR.
+
+\textbf{Restart of relaxations from scratch.} The restart is permitted only in three cases: non-finite energies or forces, numerical solver failures, or an unreadable saved structure. Large atomic displacements or symmetry breaking alone are not evidence of failure. Before restarting from scratch, record the diagnostic evidence and recovery action. Follow the procedure below strictly and make no other changes. Restart from the original POSCAR. Confirm that all processes using the superseded files have stopped, remove old outputs and continuation folders, and reuse the original calculation directory. Do not restart from the unstable CONTCAR or create an alternate directory name. If \texttt{ALGO = Normal} was used, switch to \texttt{ALGO = All} as the only setting change. Preserve all other calculation inputs and settings.
+
+\textbf{Restart of static calculations.} If a static calculation stops before completion, retain the same POSCAR and all other inputs and calculation settings. The only permitted setting modification is changing \texttt{ALGO} from \texttt{Normal} to \texttt{All} when needed for electronic convergence. If the calculation still fails with \texttt{ALGO = All}, report the failure to the user and await instructions without making further setting changes. Do not replace POSCAR with CONTCAR.
+
+\textbf{Optional supporting files.} Five optional supporting files are available from the DefectSkills GitHub repository:
+\begin{itemize}
+    \item \texttt{vasp\_settings.yaml}: Reference VASP settings for cross-checking calculation inputs.
+    \item \texttt{defect\_postprocessing.py}: Reference implementation for \texttt{pydefect}\cite{Kumagai2021} corrections and defect formation energies.
+    \item \texttt{defect\_thermodynamics.py}: Reference implementation for defect and carrier concentrations and Fermi levels using \texttt{py-sc-fermi}.\cite{Squires2023}
+    \item \texttt{unitcell.yaml}: \texttt{pydefect} input template for the band-edge references and electronic and ionic dielectric tensors.
+    \item \texttt{standard\_energies.yaml}: \texttt{pydefect} input template for elemental reference energies, set to zero for the baseline formation energies.
+\end{itemize}
+Adapt the scripts to the installed package versions and calculation hierarchy, preserving the methods, energy conventions, and outputs prescribed in this document. Validate implementations before processing results. If the YAML templates are unavailable, generate the required \texttt{pydefect} input files as described in Section~\ref{step:post}.
+
+\section{Computational prompts}
+\renewcommand{\thesubsection}{\arabic{subsection}}
+
+\subsection{Unit-cell structure and electronic structure}\label{step:unitcell}
+
+Use \texttt{pymatgen} symmetry analysis to generate a symmetry-standardized primitive cell as the starting structure for unit-cell calculations. Use HSE06\cite{Krukau2006} (\texttt{LHFCALC = True}, \texttt{HFSCREEN = 0.2}). Ask the user to specify the exact-exchange mixing parameter (\texttt{AEXX}); if none is specified, use the default value of $25\%$. If the user requests calibration to an available experimental band gap, ask them to approve trial values, perform the structural relaxation and band-gap calculation for each approved value, present the results, and wait for the user to select the final value. Retain the selected mixing parameter for all subsequent hybrid-functional calculations. Use the user-specified plane-wave energy cutoff (\texttt{ENCUT}). If none is specified, ask whether to use 400 eV and wait for confirmation. Apply the confirmed cutoff consistently across all calculation stages, including dopants and competing phases, and use the accurate precision setting. Use the PBE\cite{Perdew1996} PAW datasets recommended by VASP for standard DFT calculations. Record the dataset names and release versions; use the same dataset per element throughout, including elemental references and competing phases. Leave \texttt{LREAL} unset. Set \texttt{LASPH = True}. Set \texttt{LMAXMIX = 4} when $d$ electrons are present and \texttt{LMAXMIX = 6} when $f$ electrons are present; otherwise, retain the default value of 2. Perform non-spin-polarized unit-cell calculations.
+
+Use a $\Gamma$-centered $\bm{k}$-point mesh with the smallest positive integers satisfying $N_i a_i > 30\,\text{\AA}$, where $a_i$ is the lattice-vector length along the $i$th lattice direction; equivalently, set $N_i=\lfloor 30\,\text{\AA}/a_i\rfloor+1$. Relax atomic positions, cell shape, and volume with force convergence of 0.01 eV/\AA{}, total-energy convergence of $10^{-6}$ eV, and Gaussian smearing with a width of 0.01 eV. Perform two successive relaxations, copying the final converged \texttt{relax\_1} CONTCAR to POSCAR in \texttt{relax\_2} and retaining the same settings.
+
+Create \texttt{dos} and \texttt{band} as sibling folders directly under the calculation root, for the DOS and band-structure calculations, respectively.
+
+Calculate the DOS using the final relaxed unit cell and target hybrid functional. Retain the unit-cell settings, removing inherited \texttt{IBRION} and \texttt{NSW} settings to disable structural relaxation. Use Gaussian smearing with \texttt{SIGMA = 0.1} eV unless the user specifies another width. Double each relaxation $\bm{k}$-mesh dimension, $(2N_1\times2N_2\times2N_3)$, and set \texttt{NEDOS = 10001} for the DOS energy grid. Extract the VBM, CBM, and fundamental gap from the dense-grid eigenvalues and occupations using \texttt{pymatgen}, not from the DOS plot. Preserve these results, the DOS, electron count, and cell volume.
+
+Calculate the band structure in \texttt{band} to check the dense-grid band edges and gap. Use the final relaxed unit-cell structure and the DOS INCAR, except set \texttt{SIGMA = 0.01} eV. Generate a SeeK-path high-symmetry path\cite{Hinuma2017} using \texttt{sumo},\cite{Ganose2018} combining zero-weight path points with the weighted $\bm{k}$ points from the converged DOS calculation. Ensure the path coordinates use the same reciprocal basis as POSCAR. Retain self-consistency; do not use \texttt{ICHARG = 11} for hybrid calculations. Verify convergence of the path eigenvalues. Plot the bands with energies referenced to the VBM. Compare the VBM, CBM, and band gap extracted from the eigenvalues and occupations of the band-structure and dense-grid DOS calculations, using a consistent energy reference. Report their differences and the $\bm{k}$-point locations of the band extrema, distinguishing zero-weight path points from weighted mesh points. Present the comparison to the user and await a decision on whether to accept the dense-grid band edges and gap or perform further calculations before postprocessing.
+
+
+\subsection{Dielectric constant calculation}\label{step:dielectric}
+
+Use the final relaxed primitive-cell structure and the DOS inputs, with the changes specified below. Remove \texttt{NEDOS}, set \texttt{SIGMA = 0.01} eV, and retain the DOS $\bm{k}$-point mesh for both electronic and ionic contributions. For GGA-PBE calculations, remove \texttt{LHFCALC}, \texttt{HFSCREEN}, \texttt{AEXX}, \texttt{PRECFOCK}, and any other hybrid-only settings. Leave \texttt{LREAL} unset, remove the force convergence criterion, and tighten total-energy convergence to $10^{-8}$ eV.
+
+\begin{itemize}
+\item \textbf{Electronic contribution:} Ask the user whether to use GGA-PBE (default) or the target hybrid functional to calculate the electronic contribution. Keep the structure fixed with \texttt{IBRION} and \texttt{NSW} unset. For GGA-PBE, use density-functional perturbation theory\cite{Baroni2001} (\texttt{LEPSILON = True}) and extract the electronic tensor including local-field effects. For hybrid DFT, leave \texttt{LEPSILON} unset and use \texttt{LOPTICS = True}\cite{Gajdos2006}; set \texttt{NBANDS} to twice the value used in the DOS calculation and extract the real tensor in the zero-frequency limit, without local-field effects.
+
+\item \textbf{Ionic contribution:} Use GGA-PBE with density-functional perturbation theory\cite{Baroni2001} (\texttt{LEPSILON = True}, \texttt{IBRION = 8}, \texttt{NSW = 1}) to calculate the force constants and Born effective charges and obtain the ionic contribution to the static dielectric tensor. This is a response calculation, not a structural relaxation.
+\end{itemize}
+
+Report the full electronic and ionic tensors separately and their sum:
+\begin{equation}\label{eq:static-dielectric}
+\boldsymbol{\varepsilon}_{\mathrm{static}}
+=
+\boldsymbol{\varepsilon}_{\mathrm{electronic}}
++
+\boldsymbol{\varepsilon}_{\mathrm{ionic}}.
+\end{equation}
+State whether the electronic contribution is calculated with GGA-PBE or hybrid DFT. Report the tensors in the Cartesian frame of the primitive cell.
+
+\subsection{Phase diagram and chemical potentials}\label{step:phase}
+
+Query the Materials Project using \texttt{mp-api} to identify candidate phases covering the host chemical system, all subsystems, and elemental references. Include phases with $E_{\mathrm{hull}}\leq 0.05$ eV/atom in the Materials Project, together with the target material. Remove equivalent duplicate structures while retaining distinct phases. Under \texttt{phase\_diagram}, name each candidate folder \texttt{mp-<ID>\_<formula>} (e.g., \texttt{mp-8279\_BaCd2P2}), using its Materials Project ID followed by its chemical formula.
+
+Generate the $\bm{k}$-point sampling using \texttt{pymatgen} with \texttt{reciprocal\_density = 64}, following the Materials Project prescription.\cite{Jain2013} Retain the unit-cell structural-relaxation INCAR settings prescribed in Section~\ref{step:unitcell}. Perform non-spin-polarized calculations for nonmagnetic elemental and competing-phase references. For molecular elemental references, use the ground-state spin multiplicity of the molecule. For example, the O$_2$ molecule requires a spin-polarized triplet calculation. Place each molecule at the center of a fixed $20\times20\times20$ \AA{} cubic cell and use $\Gamma$-only $\bm{k}$-point sampling. Relax only atomic positions, keeping the cell fixed. Perform a double relaxation for each phase, using the first relaxed structure as the starting structure for the second. Use the same hybrid-functional and numerical settings across all phases, except for the molecular sampling, spin, and fixed-cell settings specified above. For phase-stability and chemical-potential analysis, use only the separately calculated target material under \texttt{phase\_diagram}, not results from the \texttt{unitcell} folder.
+
+For every candidate structure, including the host, extract the total energy only from its final converged \texttt{relax\_2} or continuation under \texttt{phase\_diagram}. Do not use \texttt{relax\_1}, interrupted runs, or superseded continuations. Record the selected source path. Exclude and report candidates without a completed second relaxation. Calculate formation energies in eV per formula unit from these total energies and select the lowest-energy structure at each composition. Use \texttt{pymatgen} to construct the convex-hull phase diagram from energies normalized per atom and determine the chemical-potential stability region of the target material, including its boundaries and vertices.\cite{Chen2013} If no stability region exists, report this and ask the researcher how to proceed before performing vertex-dependent analysis. Report the absolute chemical potentials $\mu_X$, elemental reference energies $\mu_X^0$, and relative chemical potentials $\Delta\mu_X = \mu_X - \mu_X^0$, all in eV per atom. Use the absolute chemical potentials in defect formation energies. Report boundary constraints and endpoint values, and vertex chemical potentials and coexisting phases. For dopants, ask the user to select reservoir conditions and determine chemical potentials constrained by relevant dopant-containing phases; host vertices alone do not determine them.
+
+\subsection{Defect supercell creation}
+
+Before generating defect configurations, ask the user to specify:
+\begin{itemize}
+    \item \textbf{Supercell size:} Ask whether to use a supercell containing over 200 atoms (default) or specify an optional supercell matrix. For the default option, generate candidate supercell matrices containing more than 200 atoms. Report each matrix, atom count, and three lattice-vector lengths; recommend a candidate with similar lattice-vector lengths without an unnecessary increase in atom count, and wait for user confirmation.
+    \item \textbf{Charge states:} Ask whether to use \texttt{doped} recommendations (default) for all requested defect species or user-specified charge states. If \texttt{doped} recommendations are selected, apply them without asking about each species separately. Otherwise, ask about each explicitly identified defect species one at a time, accepting an explicit integer list or an inclusive integer range, and wait for the user's choice before asking about the next species. Use only supplied list entries (e.g., $[-2,0,+2]$), or every integer in the inclusive range (e.g., $-2$ through $+2$). Apply the selected charge states to all symmetry-inequivalent sites of that defect species unless the user specifies otherwise.
+\end{itemize}
+
+Using \texttt{pymatgen}\cite{Ong2013}, transform the final relaxed primitive cell into the corresponding conventional cell and record the primitive-to-conventional mapping. Verify the transformed structure before constructing the defect supercell. Use \texttt{pymatgen-analysis-defects}\cite{Shen2024} to construct a supercell from this conventional cell, typically containing more than 200 atoms and having similar lengths along all three lattice directions. Generate symmetry-distinct vacancies, antisites, and substitutions for the requested defect types and dopant species, removing symmetry-equivalent duplicates. Generate interstitial trial sites as described in the screening step below.
+
+Record all site multiplicities per primitive cell, consistent with the primitive-cell DOS and volume used for the thermodynamic analysis in Section~\ref{step:thermodynamics}. For vacancies, antisites, and substitutions generated from the conventional cell, divide the \texttt{pymatgen} multiplicity by the conventional-to-primitive cell-size ratio and verify that the result is an integer.
+
+For the defect-free supercell, place the relaxation inputs in \texttt{defect/\allowbreak relaxation/\allowbreak bulk} and the static inputs in \texttt{defect/\allowbreak static/\allowbreak bulk}, without charge-state subfolders. Relax the atomic positions at fixed lattice vectors (\texttt{ISIF = 2}) before performing the matching static calculation. Use the same supercell lattice as for the defect calculations.
+
+When the user chooses the default recommendation option, use \texttt{doped}\cite{Kavanagh2024} to estimate charge states from the host and defect oxidation states. Use the recommended charge states with $|q|\leq4$, include the neutral state, and exclude states with $|q|>4$. Do not otherwise add or remove charge states autonomously. Follow user-selected states and record each defect's final list and exceptions. Set $N_{\mathrm{elect}} = N_{\mathrm{neutral}} - q$ for \texttt{NELECT} using the valence-electron counts of the selected pseudopotentials, where positive $q$ denotes electron removal and negative $q$ denotes electron addition.
+
+The defect naming and charge-state folder conventions follow PyCDT.\cite{Broberg2018} Under \texttt{defect/\allowbreak relaxation}, name defect folders as follows:
+\begin{itemize}
+    \item Vacancies: \texttt{vac\_\allowbreak <index>\_\allowbreak <species>}.
+    \item Antisites: \texttt{as\_\allowbreak <index>\_\allowbreak <species\_\allowbreak A>\_\allowbreak on\_\allowbreak <species\_\allowbreak B>},\\
+    where species A replaces species B.
+    \item Substitutions: \texttt{<dopant>\_\allowbreak <index>\_\allowbreak <species>}.
+\end{itemize}
+The index distinguishes symmetry-inequivalent sites. Within each defect folder, use charge-state subfolders named \texttt{charge\_-1}, \texttt{charge\_0}, \texttt{charge\_2}, and so on.
+
+For each requested intrinsic or dopant interstitial species, create an \texttt{inter\_<species>} folder under \texttt{defect/\allowbreak relaxation} with the following subfolders:
+\begin{itemize}
+    \item \texttt{PBE\_screening}: Name symmetry-distinct void/symmetry trial sites \texttt{site\_001}, \texttt{site\_002}, etc., and randomly generated trial sites \texttt{random\_001}, \texttt{random\_002}, etc. Indices identify starting sites, not energy ranks. Put charge-state subfolders within each trial.
+    \item \texttt{hybrid\_relaxation}: Copy selected PBE-relaxed structures into matching trial and charge-state subfolders, retaining \texttt{site\_<index>} or \texttt{random\_<index>} names and charge-state labels.
+\end{itemize}
+
+Create and maintain \texttt{defect/\allowbreak defect\_metadata.json} to record defect identifiers, defect sites in the supercell and their mappings to the primitive cell where defined, selected charge states, atomic composition changes, site multiplicities per primitive cell, and the primitive-cell volume.
+
+\subsection{Input validation and execution}
+
+Before submitting any calculation, first perform a read-only check of INCAR, POSCAR, KPOINTS, and POTCAR for consistency with the prescribed settings: structure and atom counts, species ordering, pseudopotential valence counts and \texttt{NELECT}, charge-state selection, magnetic-moment count, functional parameters, plane-wave cutoff energy, $\bm{k}$-point mesh, convergence criteria, relaxation or static settings, and folder hierarchy. Check the submission script against the environment and resources. Correct mismatches and revalidate before submission. Submit and monitor within agreed limits; verify convergence and record job identifiers, paths, and status. Report validation concisely without unnecessary files.
+
+\subsection{Interstitial low-energy configuration search}
+
+Identify trial interstitial sites in the unit cell using the Voronoi analysis implemented in \texttt{pymatgen-analysis-defects}.\cite{Shen2024} Explicitly check for unoccupied tetrahedral and octahedral environments where present, verifying their local coordination geometry. Use \texttt{pymatgen} symmetry analysis to remove equivalent sites and exclude occupied sites before mapping candidates into the supercell. Include these candidates in \texttt{PBE\_screening}. For each requested intrinsic or dopant interstitial species, generate five additional random trial sites directly in the defect-free supercell. Reject a site if its distance to any host atom is less than 0.75 times the sum of their covalent radii. Stop after 1000 sampling attempts; if five acceptable sites are not obtained, report the accepted sites and ask the user how to proceed.
+
+For each selected charge state, relax all trial structures following Section~\ref{step:defect-relax}, but use GGA-PBE instead of HSE06. Remove \texttt{LHFCALC}, \texttt{HFSCREEN}, \texttt{AEXX}, \texttt{PRECFOCK}, and any other hybrid-only settings; retain the remaining defect-relaxation settings.
+
+Rank the relaxed trial configurations by energy and check structural equivalence. For each charge state, select the two lowest-energy structurally distinct configurations for HSE06 relaxation, or one if only one remains. Preserve their trial names and PBE source mappings.
+
+\subsection{Defect relaxation}\label{step:defect-relax}
+
+Relax vacancies, antisites, substitutions, and the selected interstitial configurations. Retain the target material's hybrid-functional settings, pseudopotentials, and numerical settings unless specified below.
+
+Use $\Gamma$-only $\bm{k}$-point sampling with a $\Gamma$-centered $1\times1\times1$ mesh and zero shift. A sufficiently large supercell is needed to limit interactions between periodic defect images and support $\Gamma$-only sampling. Use the VASP executable \texttt{vasp\_gam} when supported by the installed build and calculation settings.
+
+Perform spin-polarized calculations (\texttt{ISPIN = 2}), and switch off symmetry (\texttt{ISYM = 0}) to allow symmetry-breaking defect relaxations. Initialize every atom with a magnetic moment of $0.6\,\mu_{\mathrm{B}}$, using \texttt{MAGMOM} = $N_{\mathrm{at}}\texttt{*}0.6$, where $N_{\mathrm{at}}$ is the number of atoms in the supercell.
+
+Relax atomic positions while keeping the supercell lattice fixed (\texttt{ISIF = 2}), with force convergence of 0.01 eV/\AA{}. To limit computational cost, perform one relaxation per configuration and charge state.
+
+Given the high computational cost of hybrid-functional defect relaxations, use \texttt{PRECFOCK = Fast}, total-energy convergence of $10^{-5}$ eV, \texttt{LREAL = Auto}, and Gaussian smearing with a width of 0.05 eV. Maintain force convergence of 0.01 eV/\AA{} in all cases.
+
+After the HSE06 relaxations, for each retained interstitial configuration, including those originating from random trials, identify its final site using \texttt{pymatgen-analysis-defects} and determine its primitive-cell multiplicity using a \texttt{doped} interstitial defect object. For a split interstitial or another configuration that cannot be represented reliably as one interstitial site, set the multiplicity to 1 as a simplifying approximation and record both this approximation and the absence of a unique primitive-cell site mapping. Random-trial counts are not multiplicities.
+
+\subsection{Defect static calculation}
+
+For a given defect, begin preparing static inputs and running static calculations only after all its charge-state relaxations have converged. Then perform a static calculation for each relaxed defect in every selected charge state using its final relaxation INCAR, with the changes specified below. Remove the inherited \texttt{IBRION} and \texttt{NSW} settings to disable structural relaxation. Use total-energy convergence of $10^{-6}$ eV, \texttt{LREAL = False}, and Gaussian smearing with a width of 0.01 eV (to reduce smearing-induced fractional occupations). Set \texttt{LCHARG = True} to enable charge-density output and \texttt{LORBIT = 11} for orbital projections. Apply matching static settings to the defect-free supercell.
+
+Write the electrostatic potential (\texttt{LVHAR = True}) to LOCPOT. The Kumagai--Oba correction uses atomic-site electrostatic potentials written to OUTCAR by default; preserve the corresponding OUTCAR files for both defect-free and defect supercells.\cite{Kumagai2014} Retain LOCPOT only to support an optional FNV comparison.\cite{Freysoldt2009}
+
+Place all completed defect static calculations under \texttt{defect/\allowbreak static}, mirroring the folder names and hierarchy under \texttt{defect/\allowbreak relaxation}. Do not carry relaxation \texttt{continue\_n} folders into static-calculation paths; use the final converged relaxation structure and record its source path separately. Retain \texttt{charge\_<q>} subfolders and, for interstitials, \texttt{hybrid\_relaxation} with the original \texttt{site\_<index>} or \texttt{random\_<index>} subfolders. Exclude relaxation and PBE-screening calculations. Verify that each collected calculation is static and electronically converged.
+
+\textbf{Validation before postprocessing.} Audit the completed calculations against the prompts and confirmed user choices before extracting formation energies:
+\begin{itemize}
+    \item \textbf{Inputs and consistency:} Read back the inputs and effective settings recorded in the outputs. Verify composition, species ordering, pseudopotential datasets, charge states and \texttt{NELECT}, functional and mixing parameter, cutoff energy, $\bm{k}$-point mesh, spin polarization treatment, and stage-specific numerical settings. Check that defect and defect-free supercell static calculations use matching settings, apart from differences required by composition and charge.
+    \item \textbf{Structures and convergence:} Trace each static POSCAR to the final converged relaxation CONTCAR, including any continuation directories. Verify atom counts, lattice vectors, and geometry. Check electronic convergence and normal termination of each static calculation, and electronic and ionic convergence, the prescribed force threshold, and normal termination of its source relaxation. Confirm that static calculations keep the intended relaxed structure fixed.
+    \item \textbf{Copied files and provenance:} Verify the source-to-destination mapping and checksums of copied files. Ensure that INCAR, POSCAR, KPOINTS, POTCAR, OUTCAR, and vasprun.xml belong to the same calculation and charge state; exclude stale, incomplete, or mixed outputs. Confirm that the collected static hierarchy contains every intended completed calculation and the correct defect-free reference.
+    \item \textbf{Analysis references:} Verify that the dielectric tensors, band edges, DOS, electron count, cell volume, site multiplicities, and phase-diagram energies come from the intended calculations and use consistent structures, coordinate frames, energy references, and cell normalization where required.
+\end{itemize}
+Report discrepancies and validation outcomes. Resolve failures before postprocessing the affected calculations; do not silently substitute missing results or settings.
+
+\subsection{Defect calculation postprocessing}\label{step:post}
+
+If provided, use \texttt{defect\_postprocessing.py} as a reference for postprocessing with \texttt{pydefect},\cite{Kumagai2021} following the reference-script guidance above. Read the outputs of converged defect and defect-free supercell static calculations with matching hybrid-DFT settings for every configuration and charge state. For each converged static calculation, use \texttt{pymatgen} to extract the final energy from \texttt{vasprun.xml}; verify that it agrees with the final \texttt{energy(sigma->0)} value in OUTCAR.
+
+Use the electronic and ionic dielectric tensors from Section~\ref{step:dielectric} directly when the primitive and conventional cells share the same Cartesian orientation; otherwise, apply the Cartesian rotation recorded for the primitive-to-conventional mapping. Apply the prescribed Kumagai--Oba charged-defect finite-size corrections in \texttt{pydefect} using the electronic and ionic dielectric tensors, each expressed in the defect-supercell Cartesian frame, together with atomic-site potentials from the defect and defect-free supercells. Do not apply FNV unless requested by the user, and never combine the FNV and Kumagai--Oba corrections for the same formation energy. Inspect the potential alignment and flag unreliable corrections, missing data, and unconverged calculations.
+
+If the unit-cell electronic-structure calculations locate the VBM away from $\Gamma$, verify that it folds onto supercell $\Gamma$; otherwise, report the mismatch and seek user guidance before proceeding. Use the defect-free supercell VBM, extracted from its eigenvalues and occupations, in the formation-energy equation below. Generate \texttt{unitcell.yaml} containing the system name, \texttt{vbm}, \texttt{cbm}, \texttt{ele\_dielectric\_const}, and \texttt{ion\_dielectric\_const}, setting \texttt{vbm} to the defect-free supercell VBM and \texttt{cbm} to this VBM plus the unit-cell fundamental band gap. Preserve the full dielectric tensors, including off-diagonal components. Generate \texttt{standard\_energies.yaml} with zero reference energies for every relevant element, including dopants, so that postprocessing yields formation energies at zero chemical potentials. These \texttt{pydefect} input files must be generated for the current study even when the optional reference scripts are not used; do not reuse material-specific values from supplied examples. Apply the absolute chemical potentials only afterward, as described below.
+
+Calculate the formation energy of defect $D$ in charge state $q$ as\cite{Freysoldt2014}
+\begin{equation}\label{eq:defect-formation-energy}
+\begin{aligned}
+E_f(D,q;\{\mu_i\},E_F)
+={}& E_{\mathrm{tot}}(D,q)-E_{\mathrm{tot}}(\mathrm{host})
+-\sum_i n_i\mu_i \\
+&+q(E_{\mathrm{VBM}}+E_F)+E_{\mathrm{corr}}(D,q),
+\end{aligned}
+\end{equation}
+where $E_{\mathrm{tot}}(D,q)$ and $E_{\mathrm{tot}}(\mathrm{host})$ are the static total energies of the defect and defect-free supercells, respectively; $n_i$ is positive for atoms added and negative for atoms removed; $\mu_i$ is the absolute elemental chemical potential; $E_{\mathrm{VBM}}$ is the VBM energy of the defect-free supercell; $E_F$ is referenced to the VBM; and $E_{\mathrm{corr}}$ is the finite-size correction, including its potential-alignment term.
+
+First evaluate Eq.~\eqref{eq:defect-formation-energy} at $E_F=0$ with all chemical potentials set to zero. The absolute chemical potentials from Section~\ref{step:phase} can then be applied as
+\begin{equation}\label{eq:chemical-potential-contribution}
+\begin{aligned}
+&E_f(D,q;\{\mu_i\},E_F=0) \\
+&\quad = E_f(D,q;\{\mu_i=0\},E_F=0) - \sum_i n_i\mu_i.
+\end{aligned}
+\end{equation}
+Export a JSON file containing the defect-free supercell VBM position and unit-cell fundamental band gap, and each defect's name, charge-state list, and corresponding list of formation energies at the VBM with all chemical potentials set to zero. Keep charge-state and formation-energy lists aligned, with formation energies in eV. Include composition changes, source paths, and correction terms for subsequent chemical-potential evaluation. Retain the lowest formation energy per defect and charge state across configurations.
+
+\subsection{Defect formation energy diagrams}
+
+At each stability-region vertex from Section~\ref{step:phase}, apply its absolute chemical potentials to the baseline formation energies from Section~\ref{step:post}. Plot the postprocessed formation energies for each vertex over $0\leq E_F\leq E_g$, with the VBM at zero and $E_g$ the unit-cell fundamental gap. Show only each defect's lowest-energy charge-state envelope.
+
+\subsection{Defect thermodynamics}\label{step:thermodynamics}
+
+Ask the user to confirm the suggested synthesis temperature of 1000 K and quench target temperature of 300 K, or specify alternatives.
+
+If provided, use \texttt{defect\_thermodynamics.py} as a reference, following the reference-script guidance above. Use \texttt{py-sc-fermi}\cite{Squires2023} to determine the self-consistent Fermi level and equilibrium defect and carrier concentrations under charge neutrality conditions at the specified synthesis temperature for each chemical-potential vertex. Supply each defect's matched charge-state and previously calculated formation-energy lists at the VBM, including chemical-potential contributions; site multiplicities; and charge-state degeneracies (set to 1 as a simplifying approximation). Reuse the unit-cell DOS and fundamental gap, shifting DOS energies to its VBM only once. Supply \texttt{DOS(...)} with \texttt{dos}, \texttt{edos}, \texttt{bandgap}, \texttt{nelect}, and \texttt{spin\_polarised} from that calculation. Supply its cell volume separately and use site multiplicities on the same cell basis. Report Fermi levels relative to the VBM. The supercell VBM is already included in the formation energies; no recalculation or matching of the two numerical VBM values is needed.
+
+Then quench to the specified target temperature,\cite{Buckeridge2019} freezing the total concentration of each defect species while allowing its charge states and the electron and hole concentrations to re-equilibrate under charge neutrality conditions. Report and visualize the defect and carrier concentrations and Fermi level at the synthesis temperature and after quenching for each vertex.
+
+\subsection{Data backup}
+
+Create a \texttt{backup} folder under the specified absolute calculation root directory. Preserve the calculation folder hierarchy within it and back up only the following files, excluding POTCAR files:
+\begin{itemize}
+    \item \textbf{Relaxation calculations:} VASP inputs, retaining only the final CONTCAR, OUTCAR, and vasprun.xml among the VASP outputs.
+    \item \textbf{Static calculations:} VASP inputs, retaining only OUTCAR and vasprun.xml among the VASP outputs.
+    \item \textbf{Dielectric constant calculations:} VASP inputs, retaining only OUTCAR and vasprun.xml among the VASP outputs; do not back up CONTCAR.
+    \item \textbf{Defect metadata:} \texttt{defect\_metadata.json}, retaining its relative path.
+    \item \textbf{Pseudopotential specifications:} A root-level \texttt{POTCAR.specs} file listing, for each element, the selected potential identifier and the \texttt{TITEL}, \texttt{ZVAL}, and \texttt{ENMAX} metadata recorded in OUTCAR. State that POTCAR reconstruction must follow the species order in the corresponding POSCAR. Do not include any POTCAR content in this file.
+\end{itemize}
+Verify that all specified files have been copied correctly. Do not remove or modify the original VASP calculations during backup.
+
+\begin{thebibliography}{99}
+
+\bibitem{Kumagai2021}
+Y. Kumagai, N. Tsunoda, A. Takahashi, and F. Oba,
+``Insights into oxygen vacancies from high-throughput first-principles calculations,''
+Phys. Rev. Mater. \textbf{5}, 123803 (2021),
+\url{https://doi.org/10.1103/PhysRevMaterials.5.123803}.
+
+\bibitem{Kavanagh2024}
+S. R. Kavanagh et al.,
+``doped: Python toolkit for robust and repeatable charged defect supercell calculations,''
+J. Open Source Softw. \textbf{9}, 6433 (2024),
+\url{https://doi.org/10.21105/joss.06433}.
+
+\bibitem{Ong2013}
+S. P. Ong et al.,
+``Python Materials Genomics (pymatgen): A robust, open-source python library for materials analysis,''
+Comput. Mater. Sci. \textbf{68}, 314--319 (2013),
+\url{https://doi.org/10.1016/j.commatsci.2012.10.028}.
+
+\bibitem{Shen2024}
+J.-X. Shen and J. Varley,
+``pymatgen-analysis-defects: A Python package for analyzing point defects in crystalline materials,''
+J. Open Source Softw. \textbf{9}, 5941 (2024),
+\url{https://doi.org/10.21105/joss.05941}.
+
+\bibitem{Squires2023}
+A. G. Squires, D. O. Scanlon, and B. J. Morgan,
+``py-sc-fermi: self-consistent Fermi energies and defect concentrations from electronic structure calculations,''
+J. Open Source Softw. \textbf{8}, 4962 (2023),
+\url{https://doi.org/10.21105/joss.04962}.
+
+\bibitem{Ganose2018}
+A. M. Ganose, A. J. Jackson, and D. O. Scanlon,
+``sumo: Command-line tools for plotting and analysis of periodic ab initio calculations,''
+J. Open Source Softw. \textbf{3}, 717 (2018),
+\url{https://doi.org/10.21105/joss.00717}.
+
+\bibitem{Jain2013}
+A. Jain et al.,
+``Commentary: The Materials Project: A materials genome approach to accelerating materials innovation,''
+APL Mater. \textbf{1}, 011002 (2013),
+\url{https://doi.org/10.1063/1.4812323}.
+
+\bibitem{VASPAIUseGuidelines}
+VASP Software GmbH, \textit{Guidelines on the Use of AI Tools in Connection with VASP Software},
+\url{https://vasp.at/info/post/ai-use-guide/} (accessed 2 November 2026).
+
+\bibitem{Krukau2006}
+A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria,
+``Influence of the exchange screening parameter on the performance of screened hybrid functionals,''
+J. Chem. Phys. \textbf{125}, 224106 (2006),
+\url{https://doi.org/10.1063/1.2404663}.
+
+\bibitem{Perdew1996}
+J. P. Perdew, K. Burke, and M. Ernzerhof,
+``Generalized gradient approximation made simple,''
+Phys. Rev. Lett. \textbf{77}, 3865--3868 (1996),
+\url{https://doi.org/10.1103/PhysRevLett.77.3865}.
+
+\bibitem{Hinuma2017}
+Y. Hinuma, G. Pizzi, Y. Kumagai, F. Oba, and I. Tanaka,
+``Band structure diagram paths based on crystallography,''
+Comput. Mater. Sci. \textbf{128}, 140--184 (2017),
+\url{https://doi.org/10.1016/j.commatsci.2016.10.015}.
+
+\bibitem{Baroni2001}
+S. Baroni, S. de Gironcoli, A. Dal Corso, and P. Giannozzi,
+``Phonons and related crystal properties from density-functional perturbation theory,''
+Rev. Mod. Phys. \textbf{73}, 515--562 (2001),
+\url{https://doi.org/10.1103/RevModPhys.73.515}.
+
+\bibitem{Gajdos2006}
+M. Gajdo\v{s}, K. Hummer, G. Kresse, J. Furthm\"uller, and F. Bechstedt,
+``Linear optical properties in the projector-augmented wave methodology,''
+Phys. Rev. B \textbf{73}, 045112 (2006),
+\url{https://doi.org/10.1103/PhysRevB.73.045112}.
+
+\bibitem{Chen2013}
+S. Chen, A. Walsh, X.-G. Gong, and S.-H. Wei,
+``Classification of lattice defects in the kesterite Cu2ZnSnS4 and Cu2ZnSnSe4 earth-abundant solar cell absorbers,''
+Adv. Mater. \textbf{25}, 1522--1539 (2013),
+\url{https://doi.org/10.1002/adma.201203146}.
+
+\bibitem{Broberg2018}
+D. Broberg, B. Medasani, N. E. R. Zimmermann, G. Yu,
+A. Canning, M. Haranczyk, M. Asta, and G. Hautier,
+``PyCDT: A Python toolkit for modeling point defects in
+semiconductors and insulators,''
+Comput. Phys. Commun. \textbf{226}, 165--179 (2018),
+\url{https://doi.org/10.1016/j.cpc.2018.01.004}.
+
+\bibitem{Kumagai2014}
+Y. Kumagai and F. Oba,
+``Electrostatics-based finite-size corrections for first-principles point defect calculations,''
+Phys. Rev. B \textbf{89}, 195205 (2014),
+\url{https://doi.org/10.1103/PhysRevB.89.195205}.
+
+\bibitem{Freysoldt2009}
+C. Freysoldt, J. Neugebauer, and C. G. Van de Walle,
+``Fully ab initio finite-size corrections for charged-defect supercell calculations,''
+Phys. Rev. Lett. \textbf{102}, 016402 (2009),
+\url{https://doi.org/10.1103/PhysRevLett.102.016402}.
+
+\bibitem{Freysoldt2014}
+C. Freysoldt, B. Grabowski, T. Hickel, J. Neugebauer, G. Kresse, A. Janotti, and C. G. Van de Walle,
+``First-principles calculations for point defects in solids,''
+Rev. Mod. Phys. \textbf{86}, 253--305 (2014),
+\url{https://doi.org/10.1103/RevModPhys.86.253}.
+
+\bibitem{Buckeridge2019}
+J. Buckeridge,
+``Equilibrium point defect and charge carrier concentrations in a material determined through calculation of the self-consistent Fermi energy,''
+Comput. Phys. Commun. \textbf{244}, 329--342 (2019),
+\url{https://doi.org/10.1016/j.cpc.2019.06.017}.
+
+\end{thebibliography}
+
+\end{document}
