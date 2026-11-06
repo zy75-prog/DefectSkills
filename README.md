@@ -19,7 +19,7 @@ Paper: https://arxiv.org/abs/2611.05654
 
 ## How to use
 
-Connect the agent to the authorized computing environment, attach `DefectSkills.pdf` in a new chat, instruct it to follow the PDF, and provide the target-material formula and absolute parent directory. Then supply the requested scientific inputs and make decisions at the defined human-in-the-loop decision points.
+Open a new Codex chat, connect the agent to the authorized compute environment, attach `DefectSkills.pdf`, instruct it to follow the PDF, and provide the target-material formula and absolute parent directory. Then supply the requested scientific inputs and make decisions at the defined human-in-the-loop decision points.
 
 The files in `optional_files/` are optional reference scripts and input templates licensed under the MIT License.
 
