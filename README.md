@@ -13,7 +13,7 @@ Paper: https://arxiv.org/abs/2611.05654
 ## Repository contents
 
 - `DefectSkills.tex`: LaTeX source containing an introductory summary and Sections II and III of the paper.
-- `DefectSkills.pdf`: Compiled version of the structured prompts.
+- `DefectSkills.pdf`: Compiled version of `DefectSkills.tex`.
 - `figures/`: Workflow and user-decision figures.
 - `optional_files/`: Optional reference scripts and input templates.
 
