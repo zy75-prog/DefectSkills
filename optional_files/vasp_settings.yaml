@@ -1,4 +1,4 @@
-# INCAR reference settings accompanying defect_prompts.tex.
+# INCAR reference settings accompanying DefectSkills.tex.
 # This file requires interpretation; do not pass the entire YAML to an INCAR writer.
 # The paper supplies workflow rules, validation, and stages not listed here.
 # Confirmed user choices override the corresponding suggested settings.
