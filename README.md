@@ -20,7 +20,7 @@ Paper: https://arxiv.org/abs/2611.05654
 ## How to use
 
 1. Open a new Codex chat.
-2. Connect the agent to the authorized compute environment.
+2. Connect the agent to the authorized compute cluster.
 3. Attach `DefectSkills.pdf` and instruct the agent to follow the PDF.
 4. Provide the target-material formula and absolute parent directory.
 5. Supply the requested scientific inputs and make decisions at the defined human-in-the-loop decision points.
