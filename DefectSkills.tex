@@ -29,20 +29,20 @@ Sections II and III present the structured prompts that constitute DefectSkills 
 
 \textbf{User interaction.} Present questions one at a time using an interactive question window when available, with suggested choices and an option for a custom response.
 
-\textbf{Environment and prerequisites.} Ask the user for the computing cluster, Python virtual environment, VASP executable, scheduler submission script, and absolute calculation root directory.
+\textbf{Environment and prerequisites.} Ask the user for the computing cluster, Python virtual environment, VASP executable, scheduler submission script, and absolute parent directory under which the target-material-specific calculation root will be created.
 
 Verify environment activation and the availability of \texttt{pydefect},\cite{Kumagai2021} \texttt{doped},\cite{Kavanagh2024} \texttt{pymatgen},\cite{Ong2013} \texttt{pymatgen-analysis-defects},\cite{Shen2024} \texttt{py-sc-fermi},\cite{Squires2023} \texttt{sumo},\cite{Ganose2018} and \texttt{mp-api}.\cite{Jain2013} Modifying any existing Python environment, including installing, upgrading, downgrading, or removing packages, is strictly forbidden without explicit user approval. If no suitable environment exists, ask whether to create one and install these packages in a user-specified directory.
 
 Confirm that VASP is accessible. Check that the submission script specifies the allocation account, queue or partition, CPU or GPU resources, nodes, tasks, and wall-time limit, and complies with cluster resource policies.
 
-Confirm that the required pseudopotential datasets are available. When using \texttt{pymatgen}, configure their path through \texttt{PMG\_VASP\_PSP\_DIR} if it is not already configured. Construct the POTCAR file by direct concatenation of the original library datasets in POSCAR species order, preserving their bytes exactly. Do not parse and rewrite datasets, trim whitespace, or insert separators or extra newlines. Verify byte-for-byte agreement with the direct library concatenation before submission. Altering pseudopotential dataset contents is strictly forbidden throughout the workflow. Any access by LLMs to VASP source code or pseudopotential datasets must comply with VASP licensing and AI-use guidelines.\cite{VASPAIUseGuidelines}
+Confirm that the required pseudopotential datasets are available. Construct the POTCAR file by direct concatenation of the original library datasets in POSCAR species order, preserving their bytes exactly. Do not parse and rewrite datasets, trim whitespace, or insert separators or extra newlines. Verify byte-for-byte agreement with the direct library concatenation before submission. Altering pseudopotential dataset contents is strictly forbidden throughout the workflow. Any access by LLMs to VASP source code or pseudopotential datasets must comply with VASP licensing and AI-use guidelines.\cite{VASPAIUseGuidelines}
 
 \textbf{Target material and research scope.} Ask the user to specify the material's chemical formula and an available identifier (e.g., Materials Project ID). Obtain its unit-cell structure from a supplied CIF or POSCAR file or a materials database, and confirm the crystal phase with the user. Ask whether to study intrinsic defects, dopants, or both. Generate vacancies, antisites, and interstitials when requested, and ask for dopant species when applicable. For each dopant, ask whether to consider substitutional sites, interstitial sites, or both. For simplicity, this computational protocol focuses on semiconductors and insulators without magnetic elements and neglects spin--orbit coupling (SOC). Users may extend it to magnetic materials or include SOC by specifying the corresponding settings and workflow modifications.
 
-\textbf{Folder hierarchy.} Within the user-specified absolute calculation root directory, create the following sibling folders as needed:
+\textbf{Folder hierarchy.} Within the user-specified absolute parent directory, create a directory named after the target material using its plain-text chemical formula (for example, \texttt{BaCd2P2}). Treat this target-material directory as the absolute calculation root directory. Derive and report the absolute calculation root directory from the user-specified parent directory and target-material formula. If the target-material directory already exists and is nonempty, do not modify or reuse it without explicit user approval. Within the absolute calculation root directory, create the following sibling folders as needed:
 \begin{itemize}
     \item \texttt{unitcell}: Unit-cell structural relaxations in \texttt{relax\_1} and \texttt{relax\_2} subfolders.
-    \item \texttt{dielectric}: Electronic and ionic dielectric contributions in separate \texttt{electronic} and \texttt{ionic} subfolders for use in charged-defect corrections.
+    \item \texttt{dielectric}: Electronic and ionic contributions to the dielectric tensor for use in charged-defect corrections. For GGA-PBE, perform one combined calculation directly in \texttt{dielectric}, without creating \texttt{electronic} or \texttt{ionic} subfolders. Create separate \texttt{electronic} and \texttt{ionic} subfolders only when a hybrid-DFT electronic contribution is requested.
     \item \texttt{dos}: Unit-cell electronic density of states (DOS) for defect thermodynamics.
     \item \texttt{band}: Unit-cell band structure along high-symmetry paths.
     \item \texttt{phase\_diagram}: Competing-phase calculations and chemical-potential stability analysis.
@@ -94,12 +94,12 @@ Calculate the band structure in \texttt{band} to check the dense-grid band edges
 
 \subsection{Dielectric constant calculation}\label{step:dielectric}
 
-Use the final relaxed primitive-cell structure and the DOS inputs, with the changes specified below. Remove \texttt{NEDOS}, set \texttt{SIGMA = 0.01} eV, and retain the DOS $\bm{k}$-point mesh for both electronic and ionic contributions. For GGA-PBE calculations, remove \texttt{LHFCALC}, \texttt{HFSCREEN}, \texttt{AEXX}, \texttt{PRECFOCK}, and any other hybrid-only settings. Leave \texttt{LREAL} unset, remove the force convergence criterion, and tighten total-energy convergence to $10^{-8}$ eV.
+Use the final relaxed primitive-cell structure and the DOS inputs, with the changes specified below. Remove \texttt{NEDOS}, set \texttt{SIGMA = 0.01} eV, and retain the DOS $\bm{k}$-point mesh for both electronic and ionic contributions. For GGA-PBE calculations, remove \texttt{LHFCALC}, \texttt{HFSCREEN}, \texttt{AEXX}, \texttt{PRECFOCK}, and any other hybrid-DFT settings. Leave \texttt{LREAL} unset, remove the force convergence criterion, and tighten total-energy convergence to $10^{-8}$ eV.
 
 \begin{itemize}
-\item \textbf{Electronic contribution:} Ask the user whether to use GGA-PBE (default) or the target hybrid functional to calculate the electronic contribution. Keep the structure fixed with \texttt{IBRION} and \texttt{NSW} unset. For GGA-PBE, use density-functional perturbation theory\cite{Baroni2001} (\texttt{LEPSILON = True}) and extract the electronic tensor including local-field effects. For hybrid DFT, leave \texttt{LEPSILON} unset and use \texttt{LOPTICS = True}\cite{Gajdos2006}; set \texttt{NBANDS} to twice the value used in the DOS calculation and extract the real tensor in the zero-frequency limit, without local-field effects.
+\item \textbf{Electronic contribution:} Ask the user whether to use GGA-PBE (default) or the target hybrid functional to calculate the electronic contribution. For GGA-PBE, do not perform a separate electronic calculation; extract the electronic tensor including local-field effects from the combined GGA-PBE calculation described under the ionic contribution below. For hybrid DFT, create \texttt{dielectric/electronic}, keep the structure fixed with \texttt{IBRION} and \texttt{NSW} unset, leave \texttt{LEPSILON} unset, and use \texttt{LOPTICS = True}\cite{Gajdos2006}; set \texttt{NBANDS} to twice the value used in the DOS calculation and extract the real tensor in the zero-frequency limit, without local-field effects.
 
-\item \textbf{Ionic contribution:} Use GGA-PBE with density-functional perturbation theory\cite{Baroni2001} (\texttt{LEPSILON = True}, \texttt{IBRION = 8}, \texttt{NSW = 1}) to calculate the force constants and Born effective charges and obtain the ionic contribution to the static dielectric tensor. This is a response calculation, not a structural relaxation.
+\item \textbf{Ionic contribution:} Use GGA-PBE with density-functional perturbation theory\cite{Baroni2001} (\texttt{LEPSILON = True}, \texttt{IBRION = 8}, \texttt{NSW = 1}) to obtain the ionic contribution to the static dielectric tensor. When GGA-PBE is selected for the electronic contribution, perform this single combined calculation directly in \texttt{dielectric}, do not create \texttt{electronic} or \texttt{ionic} subfolders, and extract both the electronic and ionic tensors from the same calculation. When hybrid DFT is selected for the electronic contribution, perform the GGA-PBE ionic calculation in \texttt{dielectric/ionic}; the separate hybrid calculation is performed in \texttt{dielectric/electronic}. This is a response calculation, not a structural relaxation.
 \end{itemize}
 
 Report the full electronic and ionic tensors separately and their sum:
@@ -187,7 +187,9 @@ Write the electrostatic potential (\texttt{LVHAR = True}) to LOCPOT. The Kumagai
 
 Place all completed defect static calculations under \texttt{defect/\allowbreak static}, mirroring the folder names and hierarchy under \texttt{defect/\allowbreak relaxation}. Do not carry relaxation \texttt{continue\_n} folders into static-calculation paths; use the final converged relaxation structure and record its source path separately. Retain \texttt{charge\_<q>} subfolders and, for interstitials, \texttt{hybrid\_relaxation} with the original \texttt{site\_<index>} or \texttt{random\_<index>} subfolders. Exclude relaxation and PBE-screening calculations. Verify that each collected calculation is static and electronically converged.
 
-\textbf{Validation before postprocessing.} Audit the completed calculations against the prompts and confirmed user choices before extracting formation energies:
+\subsection{Validation before postprocessing}\label{step:validation}
+
+Audit the completed calculations against the prompts and confirmed user choices before extracting formation energies:
 \begin{itemize}
     \item \textbf{Inputs and consistency:} Read back the inputs and effective settings recorded in the outputs. Verify composition, species ordering, pseudopotential datasets, charge states and \texttt{NELECT}, functional and mixing parameter, cutoff energy, $\bm{k}$-point mesh, spin polarization treatment, and stage-specific numerical settings. Check that defect and defect-free supercell static calculations use matching settings, apart from differences required by composition and charge.
     \item \textbf{Structures and convergence:} Trace each static POSCAR to the final converged relaxation CONTCAR, including any continuation directories. Verify atom counts, lattice vectors, and geometry. Check electronic convergence and normal termination of each static calculation, and electronic and ionic convergence, the prescribed force threshold, and normal termination of its source relaxation. Confirm that static calculations keep the intended relaxed structure fixed.
@@ -196,7 +198,7 @@ Place all completed defect static calculations under \texttt{defect/\allowbreak 
 \end{itemize}
 Report discrepancies and validation outcomes. Resolve failures before postprocessing the affected calculations; do not silently substitute missing results or settings.
 
-\subsection{Defect calculation postprocessing}\label{step:post}
+\subsection{Postprocessing and defect formation energies}\label{step:post}
 
 If provided, use \texttt{defect\_postprocessing.py} as a reference for postprocessing with \texttt{pydefect},\cite{Kumagai2021} following the reference-script guidance above. Read the outputs of converged defect and defect-free supercell static calculations with matching hybrid-DFT settings for every configuration and charge state. For each converged static calculation, use \texttt{pymatgen} to extract the final energy from \texttt{vasprun.xml}; verify that it agrees with the final \texttt{energy(sigma->0)} value in OUTCAR.
 
@@ -223,8 +225,6 @@ First evaluate Eq.~\eqref{eq:defect-formation-energy} at $E_F=0$ with all chemic
 \end{aligned}
 \end{equation}
 Export a JSON file containing the defect-free supercell VBM position and unit-cell fundamental band gap, and each defect's name, charge-state list, and corresponding list of formation energies at the VBM with all chemical potentials set to zero. Keep charge-state and formation-energy lists aligned, with formation energies in eV. Include composition changes, source paths, and correction terms for subsequent chemical-potential evaluation. Retain the lowest formation energy per defect and charge state across configurations.
-
-\subsection{Defect formation energy diagrams}
 
 At each stability-region vertex from Section~\ref{step:phase}, apply its absolute chemical potentials to the baseline formation energies from Section~\ref{step:post}. Plot the postprocessed formation energies for each vertex over $0\leq E_F\leq E_g$, with the VBM at zero and $E_g$ the unit-cell fundamental gap. Show only each defect's lowest-energy charge-state envelope.
 
@@ -314,17 +314,17 @@ Y. Hinuma, G. Pizzi, Y. Kumagai, F. Oba, and I. Tanaka,
 Comput. Mater. Sci. \textbf{128}, 140--184 (2017),
 \url{https://doi.org/10.1016/j.commatsci.2016.10.015}.
 
-\bibitem{Baroni2001}
-S. Baroni, S. de Gironcoli, A. Dal Corso, and P. Giannozzi,
-``Phonons and related crystal properties from density-functional perturbation theory,''
-Rev. Mod. Phys. \textbf{73}, 515--562 (2001),
-\url{https://doi.org/10.1103/RevModPhys.73.515}.
-
 \bibitem{Gajdos2006}
 M. Gajdo\v{s}, K. Hummer, G. Kresse, J. Furthm\"uller, and F. Bechstedt,
 ``Linear optical properties in the projector-augmented wave methodology,''
 Phys. Rev. B \textbf{73}, 045112 (2006),
 \url{https://doi.org/10.1103/PhysRevB.73.045112}.
+
+\bibitem{Baroni2001}
+S. Baroni, S. de Gironcoli, A. Dal Corso, and P. Giannozzi,
+``Phonons and related crystal properties from density-functional perturbation theory,''
+Rev. Mod. Phys. \textbf{73}, 515--562 (2001),
+\url{https://doi.org/10.1103/RevModPhys.73.515}.
 
 \bibitem{Chen2013}
 S. Chen, A. Walsh, X.-G. Gong, and S.-H. Wei,
