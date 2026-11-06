@@ -1,5 +1,5 @@
-% Sections II and III extracted from the archived DefectSkills manuscript source.
-% The scientific prompt text is reproduced verbatim; only this standalone wrapper was added.
+% Introduction summary and Sections II and III extracted from the archived DefectSkills manuscript source.
+% The scientific text is reproduced verbatim; only this standalone wrapper was added.
 \documentclass[aip,jap,reprint,amsmath,amssymb]{revtex4-2}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
@@ -7,7 +7,10 @@
 \usepackage{url}
 \usepackage{xcolor}
 \begin{document}
-\setcounter{section}{1}
+
+\section{Introduction}
+
+Here, we present DefectSkills, a set of structured prompts for guiding AI agents through first-principles calculations of point defects in semiconductors and insulators using the Vienna Ab initio Simulation Package (VASP).\cite{Kresse1996PRB,Kresse1996CMS,Kresse1999} The structured prompts guide LLM-based agents on computing clusters through calculation setup, execution, postprocessing, and analysis. They span the workflow from unit-cell and defect calculations to data backup. In addition to prescribing settings, convergence criteria, and expected outputs, the prompts ask users to confirm suggested defaults or specify alternatives for choices such as the plane-wave energy cutoff and defect charge states.
 
 Sections II and III present the structured prompts that constitute DefectSkills and are intended for direct use as agent instructions. Figure~\ref{fig:workflow} summarizes the roles of researchers and AI agents and the workflow steps defined by the prompts. Figure~\ref{fig:user-decisions} summarizes the user inputs and decisions requested throughout the workflow.
 
@@ -249,6 +252,24 @@ Create a \texttt{backup} folder under the specified absolute calculation root di
 Verify that all specified files have been copied correctly. Do not remove or modify the original VASP calculations during backup.
 
 \begin{thebibliography}{99}
+
+\bibitem{Kresse1996PRB}
+G. Kresse and J. Furthm\"uller,
+``Efficient iterative schemes for ab initio total-energy calculations using a plane-wave basis set,''
+Phys. Rev. B \textbf{54}, 11169--11186 (1996),
+\url{https://doi.org/10.1103/PhysRevB.54.11169}.
+
+\bibitem{Kresse1996CMS}
+G. Kresse and J. Furthm\"uller,
+``Efficiency of ab-initio total energy calculations for metals and semiconductors using a plane-wave basis set,''
+Comput. Mater. Sci. \textbf{6}, 15--50 (1996),
+\url{https://doi.org/10.1016/0927-0256(96)00008-0}.
+
+\bibitem{Kresse1999}
+G. Kresse and D. Joubert,
+``From ultrasoft pseudopotentials to the projector augmented-wave method,''
+Phys. Rev. B \textbf{59}, 1758--1775 (1999),
+\url{https://doi.org/10.1103/PhysRevB.59.1758}.
 
 \bibitem{Kumagai2021}
 Y. Kumagai, N. Tsunoda, A. Takahashi, and F. Oba,
