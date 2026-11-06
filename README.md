@@ -17,9 +17,9 @@ Paper: https://arxiv.org/abs/2611.05654
 - `figures/`: Workflow and user-decision figures.
 - `optional_files/`: Optional reference scripts and input templates.
 
-## Usage
+## How to use
 
-Sections II and III constitute DefectSkills and are intended for direct use as agent instructions. Researchers should provide the requested scientific inputs and make decisions at the defined human-in-the-loop decision points.
+Connect the agent to the authorized computing environment, attach `DefectSkills.pdf` in a new chat, instruct it to follow the PDF, and provide the target-material formula and absolute parent directory. Then supply the requested scientific inputs and make decisions at the defined human-in-the-loop decision points.
 
 The files in `optional_files/` are optional reference scripts and input templates licensed under the MIT License.
 
