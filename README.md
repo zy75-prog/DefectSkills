@@ -4,6 +4,8 @@ DefectSkills is a set of structured prompts that serves as natural-language code
 
 Through human-in-the-loop decision points, researchers define the scientific objectives and material-specific requirements, while LLM-based agents execute and validate the prescribed workflow.
 
+![Overview of the DefectSkills workflow](figures/workflow_overview.png)
+
 This repository accompanies:
 
 Z. Yuan, Y. Zhu, and G. Hautier, “DefectSkills: Guiding AI agents through first-principles calculations for point defects in semiconductors and insulators,” arXiv:2611.05654 (2026).
