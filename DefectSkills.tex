@@ -147,11 +147,11 @@ The defect naming and charge-state folder conventions follow PyCDT.\cite{Broberg
     where species A replaces species B.
     \item Substitutions: \texttt{<dopant>\_\allowbreak <index>\_\allowbreak <species>}.
 \end{itemize}
-The index distinguishes symmetry-inequivalent sites. Within each defect folder, use charge-state subfolders named \texttt{charge\_-1}, \texttt{charge\_0}, \texttt{charge\_2}, and so on.
+The index distinguishes symmetry-inequivalent sites and starts at 1 without leading zeros. Within each defect folder, use charge-state subfolders named \texttt{charge\_-1}, \texttt{charge\_0}, \texttt{charge\_2}, and so on.
 
 For each requested intrinsic or dopant interstitial species, create an \texttt{inter\_<species>} folder under \texttt{defect/\allowbreak relaxation} with the following subfolders:
 \begin{itemize}
-    \item \texttt{PBE\_screening}: Name symmetry-distinct void/symmetry trial sites \texttt{site\_001}, \texttt{site\_002}, etc., and randomly generated trial sites \texttt{random\_001}, \texttt{random\_002}, etc. Indices identify starting sites, not energy ranks. Put charge-state subfolders within each trial.
+    \item \texttt{PBE\_screening}: Name symmetry-distinct void/symmetry trial sites \texttt{site\_1}, \texttt{site\_2}, etc., and randomly generated trial sites \texttt{random\_1}, \texttt{random\_2}, etc. Indices identify starting sites, not energy ranks. Put charge-state subfolders within each trial.
     \item \texttt{hybrid\_relaxation}: Copy selected PBE-relaxed structures into matching trial and charge-state subfolders, retaining \texttt{site\_<index>} or \texttt{random\_<index>} names and charge-state labels.
 \end{itemize}
 
