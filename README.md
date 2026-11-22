@@ -18,6 +18,7 @@ Paper: https://arxiv.org/abs/2611.05654
 - `DefectSkills.pdf`: Compiled version of `DefectSkills.tex`.
 - `figures/`: Workflow and user-decision figures.
 - `optional_files/`: Optional reference scripts and input templates.
+- `validation/`: Optional scientific validation and follow-up guide (PDF and LaTeX source).
 
 ## How to use
 
