@@ -1,0 +1,50 @@
+\documentclass[aps,prmaterials,reprint,superscriptaddress]{revtex4-2}
+
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{microtype}
+
+\hypersetup{hidelinks}
+
+\begin{document}
+
+\section{Scientific validation and follow-up}
+
+After the planned point-defect calculations and postprocessing are complete, assess whether the results are physically meaningful and reliable. The checks below provide a brief assessment of common reliability issues and are not exhaustive. Use scientific judgment to interpret the available evidence in the material's physical context and explain the basis for each decision. Report unresolved findings and propose any additional calculations needed to resolve them. Perform follow-up calculations only when authorized and update the affected downstream results after an accepted change.
+
+\textbf{Electrostatic correction and potential alignment.}
+When the Kumagai--Oba correction \cite{Kumagai2014} is used, assess its reliability for each charged defect. Inspect the atomic-site potential plots, generating them from the \texttt{pydefect} \cite{Kumagai2021} correction data if needed. At each matched atomic site, subtract the defect-free supercell potential and the model-charge potential from the charged-defect supercell potential. Check whether the residual is approximately constant across the far-field sampling region. Assess whether the supercell is large enough to contain the localized defect charge and provide sufficient far-field sites for a reliable average. If the residual varies systematically or sampling is inadequate, keep the affected results provisional and first test how the average depends on physically justified sampling choices. Propose a larger supercell only if the current cell lacks a reliable far-field region.
+
+\textbf{Charge-state completeness.}
+The initial charge set may be limited by the default cutoff of $|q|\leq4$ or by user restrictions. Identify plausible missing charge states using existing electron-counting and electronic-structure evidence. Use the valence-band maximum (VBM) and conduction-band minimum (CBM) of the matching defect-free supercell as the bulk band edges. At the lowest calculated charge $q_{\min}$, check whether an empty defect-centered gap state supports adding an electron and testing $q_{\min}-1$. At the highest calculated charge $q_{\max}$, check whether an occupied defect-centered gap state supports removing an electron and testing $q_{\max}+1$. Examine band-edge character and localization as needed. Report proposed additions, including states outside the initial range, for researcher authorization.
+
+\textbf{Charge-transition level validation.}
+On the lower formation-energy envelope within the host band gap, check for donor $(+/0)$ levels near the valence-band maximum and acceptor $(0/-)$ levels near the conduction-band minimum. For these levels, inspect the occupations and electronic-state character of the two participating charge states to assess whether the charge change involves an unbound host-band carrier. Report unresolved cases. Keep a record of transition levels confirmed to arise from unbound host-band carriers and exclude them from reported defect ionization levels.
+
+\textbf{Metastable-configuration detection.}
+Assess whether the relaxation at a given charge state may have converged to a metastable configuration. This is distinct from thermodynamic charge-state stability: retain charge states even if they never lie on the lower formation-energy envelope. Apply the check separately to each vacancy, antisite, or substitution whose charge states share a common unrelaxed structure. Exclude interstitials from this check. With consistent atom ordering and periodic-image mapping, remove rigid translation. Compare the local geometries and calculate the mass-weighted displacement \cite{Alkauskas2014} from the reference for each charge state,
+\begin{equation}
+\Delta Q(q)=\left[\sum_i m_i\left|\mathbf{R}_i(q)-\mathbf{R}_i^{\mathrm{ref}}\right|^2\right]^{1/2}.
+\end{equation}
+Here, $m_i$ is the mass of atom $i$, and $\mathbf{R}_i(q)$ and $\mathbf{R}_i^{\mathrm{ref}}$ are its relaxed and reference positions. A large difference in $\Delta Q$ between neighboring charge states can flag possible trapping in a metastable configuration but does not establish metastability. Inspect the local symmetry and identify the atoms responsible for any reconstruction. For example, if the relaxed structure at $q=-1$ or $q=+1$ shows a pronounced structural reconstruction while the $q=0$ structure remains close to the reference, propose relaxing $q=0$ from that reconstructed geometry. Conversely, if $q=0$ reconstructs while $q=-1$ or $q=+1$ remains close to the reference, propose relaxing that charge state from the $q=0$ geometry. Perform only authorized tests, preserving the lattice, atom order, and target-charge calculation settings. If trapping in a metastable configuration is suspected but no suitable starting geometry for a follow-up test can be identified, report the assessment as unresolved.
+
+Apply this comparison only after an authorized follow-up relaxation. Align the original and follow-up structures, both relaxed at the same charge with matching calculation settings. Compare atomic displacements, local coordination, symmetry, and spin state, allowing for numerical relaxation tolerances. Treat distinct relaxed configurations as nearly degenerate when their energy difference is within the estimated numerical uncertainty. When distinct configurations differ in energy by more than that uncertainty, report the lower-energy structure as the best ground-state candidate found and the higher-energy structure as metastable if it is a relaxed local minimum. Retain both the ground-state candidate and the metastable result.
+
+\textbf{Audit outcome and follow-up.}
+Assign each applicable check a \texttt{PASS}, \texttt{FAIL}, or \texttt{UNRESOLVED} outcome. For each failed or unresolved check, record the affected defect and charge state or transition, the evidence, the decision, the proposed or authorized follow-up, and all downstream files and results requiring updates. Preserve the original calculations. Perform follow-up calculations only when authorized, and refer unresolved scientific decisions to the researcher. After an accepted change to a correction, charge set, or structure, regenerate the affected formation energies, transition levels, concentrations, and backup files, then repeat the scientific audit. Complete the audit only when all applicable checks pass and no required follow-up remains unresolved.
+
+\begin{thebibliography}{1}
+\bibitem{Kumagai2014}
+Y.~Kumagai and F.~Oba,
+\href{https://doi.org/10.1103/PhysRevB.89.195205}{Phys.\ Rev.\ B \textbf{89}, 195205 (2014)}.
+
+\bibitem{Kumagai2021}
+Y.~Kumagai, N.~Tsunoda, A.~Takahashi, and F.~Oba,
+\href{https://doi.org/10.1103/PhysRevMaterials.5.123803}{Phys.\ Rev.\ Mater.\ \textbf{5}, 123803 (2021)}.
+
+\bibitem{Alkauskas2014}
+A.~Alkauskas, Q.~Yan, and C.~G.~Van de Walle,
+\href{https://doi.org/10.1103/PhysRevB.90.075202}{Phys.\ Rev.\ B \textbf{90}, 075202 (2014)}.
+\end{thebibliography}
+
+\end{document}

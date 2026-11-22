@@ -29,6 +29,13 @@ Paper: https://arxiv.org/abs/2611.05654
 
 The files in `optional_files/` are optional reference scripts.
 
+## Scientific validation and follow-up
+
+This optional companion guides the review of point-defect results after postprocessing and helps identify cases that warrant follow-up calculations.
+
+- [Read the protocol (PDF)](validation/defectskills_validation_section.pdf)
+- [Download the LaTeX source](validation/defectskills_validation_section.tex)
+
 ## Supporting calculation data
 
 The VASP calculation data used in the paper are available on Zenodo:
